@@ -185,9 +185,7 @@ function Navbar() {
                   to="/my-favorites"
                   sx={{ display: { xs: 'none', sm: 'flex' } }}
                 >
-                  <Badge badgeContent={favorites.length} color="primary">
-                    <FavoriteIcon />
-                  </Badge>
+                  <FavoriteIcon />
                 </IconButton>
 
                 <Button
@@ -291,18 +289,7 @@ function Navbar() {
               onClick={handleClose}
               sx={{ py: 1 }}
             >
-              <Badge 
-                badgeContent={favorites.length} 
-                color="primary"
-                sx={{ 
-                  '& .MuiBadge-badge': { 
-                    right: -3,
-                    top: 3,
-                  } 
-                }}
-              >
-                <FavoriteIcon sx={{ mr: 1 }} />
-              </Badge>
+              <FavoriteIcon sx={{ mr: 1 }} />
               Favorilerim
             </MenuItem>
 

@@ -150,6 +150,9 @@ function ProductDetail() {
               <Typography variant="h5" color="primary" gutterBottom>
                 {listing.price.toLocaleString()} TL
               </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                İlan No: {listing.listingNumber}
+              </Typography>
               <Typography variant="body1" color="text.secondary" gutterBottom>
                 {listing.city} • {conditions[listing.condition]}
               </Typography>

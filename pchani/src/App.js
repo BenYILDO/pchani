@@ -15,6 +15,7 @@ import EditListing from './pages/Listing/EditListing';
 import Profile from './pages/Profile/Profile';
 import Messages from './pages/Messages/Messages';
 import Favorites from './pages/Profile/Favorites';
+import MyListings from './pages/Profile/MyListings';
 import { Box } from '@mui/material';
 
 const theme = createTheme({
@@ -161,7 +162,7 @@ function App() {
                       path="/my-listings"
                       element={
                         <ProtectedRoute>
-                          <div>İlanlarım Sayfası</div>
+                          <MyListings />
                         </ProtectedRoute>
                       }
                     />

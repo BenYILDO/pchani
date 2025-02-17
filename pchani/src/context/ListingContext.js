@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { categories as initialCategories } from '../constants';
+import { categories as initialCategories, categoryNumbers, brandNumbers } from '../constants';
 
 const ListingContext = createContext(null);
 
@@ -152,12 +152,39 @@ export const ListingProvider = ({ children }) => {
     setLoading(false);
   }, [updateLocalStorageAndStats]);
 
+  // Benzersiz ilan numarası oluştur
+  const generateUniqueListingNumber = (categoryId, brand) => {
+    // Kategori numarasını al
+    const categoryNumber = categoryNumbers[categoryId] || '999'; // Bilinmeyen kategori için 999
+    
+    // Marka numarasını al
+    const brandNumber = brandNumbers[brand.toLowerCase()] || '999'; // Bilinmeyen marka için 999
+    
+    // Benzersiz 4 haneli numara oluştur
+    let uniqueNumber;
+    let isUnique = false;
+    
+    while (!isUnique) {
+      // 4 haneli rastgele numara oluştur
+      uniqueNumber = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      
+      // Oluşturulan numaranın benzersiz olduğunu kontrol et
+      const fullNumber = `${categoryNumber}${brandNumber}${uniqueNumber}`;
+      isUnique = !listings.some(listing => listing.listingNumber === fullNumber);
+    }
+    
+    return `${categoryNumber}${brandNumber}${uniqueNumber}`;
+  };
+
   // Yeni ilan ekleme
   const addListing = (listingData) => {
     return new Promise((resolve) => {
+      const listingNumber = generateUniqueListingNumber(listingData.category, listingData.brand);
+
       const newListing = {
         ...listingData,
         id: Date.now(),
+        listingNumber,
         createdAt: new Date().toISOString().split('T')[0],
         lastModified: new Date().toISOString().split('T')[0],
         views: 0,
@@ -361,6 +388,15 @@ export const ListingProvider = ({ children }) => {
     return listings.filter(listing => list.items.includes(listing.id));
   };
 
+  // İlan arama fonksiyonu
+  const searchListings = (query) => {
+    return listings.filter(listing => 
+      listing.title.toLowerCase().includes(query.toLowerCase()) ||
+      listing.description.toLowerCase().includes(query.toLowerCase()) ||
+      listing.listingNumber === query
+    );
+  };
+
   const value = {
     listings,
     loading,
@@ -382,6 +418,7 @@ export const ListingProvider = ({ children }) => {
     deleteFavoriteList,
     updateListName,
     getListItems,
+    searchListings,
   };
 
   return (

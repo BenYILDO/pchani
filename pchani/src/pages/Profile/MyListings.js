@@ -1,257 +1,327 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { useListing } from '../../context/ListingContext';
+import React, { useState } from 'react';
 import {
-  Box,
+  Container,
   Grid,
-  Card,
-  CardContent,
-  CardMedia,
   Typography,
+  Box,
+  Paper,
   Button,
-  Chip,
-  IconButton,
-  Menu,
-  MenuItem,
+  Tabs,
+  Tab,
+  useTheme,
+  alpha,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Tab,
-  Tabs,
+  TextField,
+  InputAdornment,
+  Chip,
+  Divider,
 } from '@mui/material';
-import {
-  MoreVert,
-  Edit,
-  Delete,
-  Visibility,
-  VisibilityOff,
-  LocalOffer,
-  AccessTime,
-  RemoveRedEye,
-} from '@mui/icons-material';
+import { Link } from 'react-router-dom';
+import { useListing } from '../../context/ListingContext';
+import { useAuth } from '../../context/AuthContext';
+import SearchIcon from '@mui/icons-material/Search';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import AddIcon from '@mui/icons-material/Add';
 
-// Örnek ilan verileri
-const mockListings = [
-  {
-    id: 1,
-    title: 'Gaming PC RTX 4090',
-    price: 125000,
-    image: 'https://source.unsplash.com/random?gaming-pc',
-    status: 'active',
-    views: 245,
-    createdAt: '2024-02-10',
-    lastModified: '2024-02-10',
-  },
-  {
-    id: 2,
-    title: 'MacBook Pro M2 Max',
-    price: 82500,
-    image: 'https://source.unsplash.com/random?macbook',
-    status: 'active',
-    views: 189,
-    createdAt: '2024-02-09',
-    lastModified: '2024-02-09',
-  },
-  {
-    id: 3,
-    title: 'RTX 4080 Ekran Kartı',
-    price: 45000,
-    image: 'https://source.unsplash.com/random?gpu',
-    status: 'sold',
-    views: 567,
-    createdAt: '2024-02-08',
-    lastModified: '2024-02-08',
-  },
-  {
-    id: 4,
-    title: 'Intel i9 13900K',
-    price: 28500,
-    image: 'https://source.unsplash.com/random?processor',
-    status: 'inactive',
-    views: 123,
-    createdAt: '2024-02-07',
-    lastModified: '2024-02-07',
-  },
-];
-
-function MyListings() {
-  const navigate = useNavigate();
+const MyListings = () => {
+  const theme = useTheme();
   const { user } = useAuth();
-  const { getUserListings, deleteListing, updateListingStatus } = useListing();
-  const [listings, setListings] = useState([]);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedListing, setSelectedListing] = useState(null);
+  const { getUserListings, updateListingStatus, deleteListing, searchListings } = useListing();
+  const [selectedTab, setSelectedTab] = useState('active');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [tabValue, setTabValue] = useState(0);
+  const [selectedListing, setSelectedListing] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    if (user) {
-      const userListings = getUserListings(user.id);
-      setListings(userListings);
-    }
-  }, [user, getUserListings]);
+  const userListings = getUserListings(user?.id);
+  const filteredListings = userListings.filter(listing => {
+    const matchesStatus = 
+      selectedTab === 'active' ? listing.status === 'active' :
+      selectedTab === 'passive' ? listing.status === 'passive' :
+      selectedTab === 'sold' ? listing.status === 'sold' :
+      true;
 
-  const handleMenuClick = (event, listing) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedListing(listing);
-  };
+    const matchesSearch = searchQuery ? (
+      listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.listingNumber === searchQuery
+    ) : true;
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
+    return matchesStatus && matchesSearch;
+  });
 
-  const handleDeleteClick = () => {
-    handleMenuClose();
-    setDeleteDialogOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    try {
-      await deleteListing(selectedListing.id);
-      setListings(prevListings => 
-        prevListings.filter(listing => listing.id !== selectedListing.id)
-      );
-      setDeleteDialogOpen(false);
-    } catch (error) {
-      console.error('İlan silinirken hata oluştu:', error);
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active': return 'success';
+      case 'passive': return 'warning';
+      case 'sold': return 'primary';
+      default: return 'default';
     }
   };
 
-  const handleStatusChange = async (newStatus) => {
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'active': return 'Yayında';
+      case 'passive': return 'Pasif';
+      case 'sold': return 'Satıldı';
+      default: return status;
+    }
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setSelectedTab(newValue);
+  };
+
+  const handleStatusChange = async (listingId, newStatus) => {
     try {
-      await updateListingStatus(selectedListing.id, newStatus);
-      setListings(prevListings =>
-        prevListings.map(listing =>
-          listing.id === selectedListing.id
-            ? { ...listing, status: newStatus }
-            : listing
-        )
-      );
-      handleMenuClose();
+      await updateListingStatus(listingId, newStatus);
     } catch (error) {
       console.error('İlan durumu güncellenirken hata oluştu:', error);
     }
   };
 
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
+  const handleDeleteClick = (listing) => {
+    setSelectedListing(listing);
+    setDeleteDialogOpen(true);
   };
 
-  const getFilteredListings = () => {
-    switch (tabValue) {
-      case 0: // Tümü
-        return listings;
-      case 1: // Aktif
-        return listings.filter(listing => listing.status === 'active');
-      case 2: // Satıldı
-        return listings.filter(listing => listing.status === 'sold');
-      case 3: // Pasif
-        return listings.filter(listing => listing.status === 'inactive');
-      default:
-        return listings;
+  const handleDeleteConfirm = async () => {
+    if (selectedListing) {
+      try {
+        await deleteListing(selectedListing.id);
+        setDeleteDialogOpen(false);
+        setSelectedListing(null);
+      } catch (error) {
+        console.error('İlan silinirken hata oluştu:', error);
+      }
     }
   };
 
-  const getStatusChip = (status) => {
-    const statusConfig = {
-      active: { label: 'Aktif', color: 'success' },
-      inactive: { label: 'Pasif', color: 'default' },
-      sold: { label: 'Satıldı', color: 'primary' },
-    };
-    return statusConfig[status] || { label: status, color: 'default' };
-  };
-
-  const handleEdit = (listing) => {
-    navigate(`/edit-listing/${listing.id}`);
-    handleMenuClose();
-  };
-
   return (
-    <Box>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tabValue} onChange={handleTabChange} variant="fullWidth">
-          <Tab label="Tümü" />
-          <Tab label="Aktif" />
-          <Tab label="Satıldı" />
-          <Tab label="Pasif" />
-        </Tabs>
-      </Box>
-
-      <Grid container spacing={3}>
-        {getFilteredListings().map((listing) => (
-          <Grid item xs={12} sm={6} key={listing.id}>
-            <Card sx={{ height: '100%', position: 'relative' }}>
-              <CardMedia
-                component="img"
-                height="200"
-                image={listing.image}
-                alt={listing.title}
-              />
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Typography variant="h6" gutterBottom>
-                    {listing.title}
-                  </Typography>
-                  <IconButton onClick={(e) => handleMenuClick(e, listing)}>
-                    <MoreVert />
-                  </IconButton>
-                </Box>
-
-                <Typography variant="h6" color="primary" gutterBottom>
-                  {listing.price.toLocaleString()} ₺
-                </Typography>
-
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <Chip
-                    label={getStatusChip(listing.status).label}
-                    color={getStatusChip(listing.status).color}
-                    size="small"
-                  />
-                </Box>
-
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, color: 'text.secondary' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <RemoveRedEye sx={{ fontSize: 16, mr: 0.5 }} />
-                    <Typography variant="body2">{listing.views}</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <AccessTime sx={{ fontSize: 16, mr: 0.5 }} />
-                    <Typography variant="body2">{listing.createdAt}</Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* İlan Menüsü */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Paper 
+        sx={{ 
+          p: 3,
+          mb: 4,
+          backgroundColor: theme.palette.background.paper,
+          borderRadius: 2,
+        }}
       >
-        <MenuItem onClick={() => handleEdit(selectedListing)}>
-          <Edit sx={{ mr: 1 }} /> Düzenle
-        </MenuItem>
-        {selectedListing?.status === 'active' ? (
-          <MenuItem onClick={() => handleStatusChange('inactive')}>
-            <VisibilityOff sx={{ mr: 1 }} /> Pasife Al
-          </MenuItem>
+        {/* Üst Başlık ve Arama */}
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
+          <Typography variant="h5" sx={{ flexGrow: 1 }}>
+            İlanlarım
+          </Typography>
+          <TextField
+            size="small"
+            placeholder="İlan no veya kelime ile ara"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            sx={{ width: 300 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            component={Link}
+            to="/post-listing"
+          >
+            Yeni İlan Ver
+          </Button>
+        </Box>
+
+        {/* Özet Bilgiler */}
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={4}>
+            <Paper
+              sx={{
+                p: 2,
+                textAlign: 'center',
+                backgroundColor: alpha(theme.palette.success.main, 0.1),
+              }}
+            >
+              <Typography variant="h6" color="success.main">
+                {userListings.filter(l => l.status === 'active').length}
+              </Typography>
+              <Typography color="text.secondary">Yayında</Typography>
+            </Paper>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Paper
+              sx={{
+                p: 2,
+                textAlign: 'center',
+                backgroundColor: alpha(theme.palette.warning.main, 0.1),
+              }}
+            >
+              <Typography variant="h6" color="warning.main">
+                {userListings.filter(l => l.status === 'passive').length}
+              </Typography>
+              <Typography color="text.secondary">Pasif</Typography>
+            </Paper>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Paper
+              sx={{
+                p: 2,
+                textAlign: 'center',
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              }}
+            >
+              <Typography variant="h6" color="primary.main">
+                {userListings.filter(l => l.status === 'sold').length}
+              </Typography>
+              <Typography color="text.secondary">Satıldı</Typography>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        {/* Sekmeler */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Tabs
+            value={selectedTab}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            <Tab label="Yayında Olanlar" value="active" />
+            <Tab label="Yayında Olmayanlar" value="passive" />
+            <Tab label="Satılanlar" value="sold" />
+          </Tabs>
+        </Box>
+
+        {/* İlan Listesi */}
+        {filteredListings.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Typography color="text.secondary">
+              Bu kategoride ilan bulunmuyor.
+            </Typography>
+          </Box>
         ) : (
-          <MenuItem onClick={() => handleStatusChange('active')}>
-            <Visibility sx={{ mr: 1 }} /> Aktife Al
-          </MenuItem>
+          <Box>
+            {filteredListings.map((listing) => (
+              <Paper
+                key={listing.id}
+                sx={{
+                  p: 2,
+                  mb: 2,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.common.white, 0.05),
+                  }
+                }}
+              >
+                <Grid container spacing={2}>
+                  {/* İlan Resmi */}
+                  <Grid item xs={12} sm={3}>
+                    <Box
+                      component="img"
+                      src={listing.image}
+                      alt={listing.title}
+                      sx={{
+                        width: '100%',
+                        height: 150,
+                        objectFit: 'cover',
+                        borderRadius: 1,
+                      }}
+                    />
+                  </Grid>
+
+                  {/* İlan Detayları */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                      <Typography variant="h6" gutterBottom component={Link} to={`/product/${listing.id}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
+                        {listing.title}
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+                        <Chip
+                          label={getStatusText(listing.status)}
+                          color={getStatusColor(listing.status)}
+                          size="small"
+                        />
+                        <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
+                          <VisibilityIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                          <Typography variant="body2">{listing.views || 0}</Typography>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary">
+                          İlan No: {listing.listingNumber}
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, color: 'text.secondary' }}>
+                        <LocationOnIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                        <Typography variant="body2">{listing.city}, {listing.district}</Typography>
+                      </Box>
+
+                      <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
+                        <AccessTimeIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                        <Typography variant="body2">İlan Tarihi: {listing.createdAt}</Typography>
+                      </Box>
+
+                      <Typography variant="h6" color="primary" sx={{ mt: 'auto' }}>
+                        {listing.price.toLocaleString()} TL
+                      </Typography>
+                    </Box>
+                  </Grid>
+
+                  {/* İşlem Butonları */}
+                  <Grid item xs={12} sm={3}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%', justifyContent: 'center' }}>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        component={Link}
+                        to={`/edit-listing/${listing.id}`}
+                        fullWidth
+                      >
+                        Düzenle
+                      </Button>
+                      {listing.status === 'active' ? (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleStatusChange(listing.id, 'passive')}
+                          fullWidth
+                        >
+                          Yayından Kaldır
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleStatusChange(listing.id, 'active')}
+                          fullWidth
+                        >
+                          Yayına Al
+                        </Button>
+                      )}
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteClick(listing)}
+                        fullWidth
+                      >
+                        Sil
+                      </Button>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+            ))}
+          </Box>
         )}
-        <MenuItem onClick={() => handleStatusChange('sold')}>
-          <LocalOffer sx={{ mr: 1 }} /> Satıldı Olarak İşaretle
-        </MenuItem>
-        <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
-          <Delete sx={{ mr: 1 }} /> Sil
-        </MenuItem>
-      </Menu>
+      </Paper>
 
       {/* Silme Onay Dialog'u */}
       <Dialog
@@ -261,18 +331,18 @@ function MyListings() {
         <DialogTitle>İlanı Sil</DialogTitle>
         <DialogContent>
           <Typography>
-            Bu ilanı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+            "{selectedListing?.title}" başlıklı ilanı silmek istediğinizden emin misiniz?
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>İptal</Button>
-          <Button onClick={handleDeleteConfirm} color="error">
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
             Sil
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </Container>
   );
-}
+};
 
 export default MyListings; 
